@@ -43,3 +43,15 @@
 1. **`GameRecord`**: Constructor canonical nhận đúng thứ tự 16 tham số như đặc tả mục 17:
    `(timestamp, name, outcome, score, seconds, correctChars, wrongChars, accuracy, kills, quick, bonus, bossWords, wpm, wave, hp, shield)`.
 2. **`HistoryStore`**: Cung cấp hàm `save(GameRecord record)` ném `IOException` nếu ghi thất bại.
+
+---
+
+## ⚠️ Lưu ý quan trọng về các file STUB (Tạm thời)
+Để đảm bảo nhánh `dev` luôn chạy `mvn clean test` đạt `BUILD SUCCESS`, Member D đã dựng sẵn khung (Stubs) cho một số class của B, C, E:
+- **Model (B)**: `Player`, `Monster`, `LaserEffect`
+- **Manager (C)**: `TargetManager`, `MonsterFactory`
+- **Storage (E)**: `GameRecord`, `HistoryStore`
+
+👉 **Hướng dẫn khi triển khai**:
+1. Chỉ cần giữ nguyên tên hàm và tham số đã có sẵn trong các stub này, sau đó viết thêm logic xử lý bên trong.
+2. Không thay đổi signature (tên hàm, kiểu trả về, danh sách tham số) đã thống nhất để tránh gãy build hệ thống.
