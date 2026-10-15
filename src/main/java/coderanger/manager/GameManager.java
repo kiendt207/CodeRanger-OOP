@@ -33,7 +33,7 @@ public class GameManager {
         this.historyStore = historyStore;
         this.monsterFactory = monsterFactory;
 
-        this.player = new Player(GameConstants.PLAYER_X, GameConstants.PLAYER_Y);
+        this.player = new Player();
         this.targetManager = new TargetManager();
         this.waveManager = new WaveManager(new Difficulty(), monsterFactory);
         this.buffManager = new BuffManager();
@@ -78,7 +78,7 @@ public class GameManager {
             player.takeDamage(1);
             stats.resetStreak();
 
-            if (player.isDead()) {
+            if (player.getHp() == 0) {
                 state = GameState.LOSS;
                 targetManager.unlockTarget();
                 saveAndSnapshot("LOSS");
