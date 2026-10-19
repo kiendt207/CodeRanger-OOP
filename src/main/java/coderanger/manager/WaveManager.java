@@ -1,6 +1,8 @@
 package coderanger.manager;
 
+import coderanger.model.BonusMonster;
 import coderanger.model.Monster;
+import coderanger.model.NormalMonster;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -23,26 +25,50 @@ public class WaveManager {
 
     public List<Monster> update(double dt, double now, List<Monster> currentMonsters) {
         List<Monster> newSpawns = new ArrayList<>();
+
         if (now >= 240.0) {
             this.currentWave = 7;
-            return newSpawns; 
+            return newSpawns;
         }
 
         this.currentWave = (int) Math.floor(now / 40.0) + 1;
+        int currentLevel = difficulty.level(now);
 
         normalElapsed += dt;
-        double interval = difficulty.normalInterval(now);
-        int maxAllowed = difficulty.maxNormals(now);
+        double nInterval = difficulty.normalInterval(now);
+        int maxNormals = difficulty.maxNormals(now);
 
         long activeNormals = currentMonsters.stream()
-                .filter(m -> m.isAlive())
+                .filter(m -> m.isAlive() && (m instanceof NormalMonster))
                 .count();
 
-        if (activeNormals >= maxAllowed) {
-            if (normalElapsed > interval) normalElapsed = interval;
-        } else if (normalElapsed >= interval) {
-            normalElapsed -= interval;
-            newSpawns.add(monsterFactory.createNormal(difficulty.level(now), now, false));
+        if (activeNormals >= maxNormals) {
+            if (normalElapsed > nInterval) {
+                normalElapsed = nInterval;
+            }
+        } else if (normalElapsed >= nInterval) {
+            normalElapsed -= nInterval;
+            Monster normal = monsterFactory.createNormal(currentLevel, now, false);
+            if (normal != null) {
+                newSpawns.add(normal);
+            }
+        }
+
+        boolean hasActiveBonus = currentMonsters.stream()
+                .anyMatch(m -> m.isAlive() && (m instanceof BonusMonster));
+
+        if (!hasActiveBonus) {
+            bonusElapsed += dt;
+            double bInterval = difficulty.bonusInterval(now);
+            if (bonusElapsed >= bInterval) {
+                bonusElapsed = 0.0; 
+                Monster bonus = monsterFactory.createBonus(currentLevel, now);
+                if (bonus != null) {
+                    newSpawns.add(bonus);
+                }
+            }
+        } else {
+            bonusElapsed = 0.0;
         }
 
         return newSpawns;
