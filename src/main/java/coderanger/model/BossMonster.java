@@ -289,6 +289,11 @@ public class BossMonster extends Monster {
     }
 
     @Override
+    public boolean isBoss() {
+        return true;
+    }
+
+    @Override
     public boolean isCompleted() {
         return currentWordIndex >= currentWord.length();
     }

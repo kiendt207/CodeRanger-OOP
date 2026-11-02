@@ -138,4 +138,14 @@ public class NormalMonster extends Monster {
     public double getSpeed(){
         return speed;
     }
+
+    @Override public double getVerticalSpeed() {
+        if (minion) return speed;     // minion rơi thẳng xuống
+
+        double dx = PLAYER_X - (getX() + getWidth() / 2.0);
+        double dy = PLAYER_Y - (getY() + getHeight() / 2.0);
+        double d = Math.hypot(dx, dy);
+
+        return d == 0 ? 0.0 : speed * dy / d;
+    }
 }

@@ -17,6 +17,10 @@ public class GameStats {
     private boolean bossKilled;
 
     public GameStats() {
+        reset();
+    }
+
+    public void reset() {
         this.score = 0;
         this.streak = 0;
         this.peakStreak = 0;
@@ -43,31 +47,38 @@ public class GameStats {
     }
 
     public void recordKill(Monster monster, boolean isQuickKill, boolean isShockwave) {
+        if (monster.isBonus()) bonusKills++;
+
         if (isShockwave) {
-            score = Math.min(Long.MAX_VALUE, score + 25);
+            addScore(25);
             monstersKilled++;
             return;
         }
 
-        // Kill trực tiếp
         double multiplier = Math.min(2.0, 1.0 + 0.1 * Math.floor(streak / 5.0));
         long points = (long) Math.floor(monster.getRewardScore() * multiplier);
+
         if (isQuickKill) {
             points += 50;
             quickKills++;
         }
-        score = Math.min(Long.MAX_VALUE, score + points);
+
+        addScore(points);
         monstersKilled++;
     }
 
+    public int getMonstersKilled() { return monstersKilled; }
+    public int getQuickKills() { return quickKills; }
+    public int getBonusKills() { return bonusKills; }
+
     public void recordBossWord() {
         bossWords++;
-        score = Math.min(Long.MAX_VALUE, score + 100);
+        addScore(100);
     }
 
     public void recordBossDeath() {
         bossKilled = true;
-        score = Math.min(Long.MAX_VALUE, score + 1000);
+        addScore(1000);
     }
 
     public void resetStreak() {
@@ -105,4 +116,8 @@ public class GameStats {
     public long getScore() { return score; }
     public int getStreak() { return streak; }
     public int getPeakStreak() { return peakStreak; }
+
+    private void addScore(long points) {
+        score = points > Long.MAX_VALUE - score ? Long.MAX_VALUE : score + points;
+    }
 }

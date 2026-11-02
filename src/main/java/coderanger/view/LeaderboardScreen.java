@@ -18,6 +18,7 @@ import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.Font;
 import java.time.ZoneId;
+import java.time.Instant;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Locale;
@@ -100,7 +101,7 @@ public class LeaderboardScreen extends JPanel {
         int rank = 1;
         for (GameRecord r : records) {
             model.addRow(new Object[] {
-                    ranked ? String.valueOf(rank++) : date.format(r.timestamp()),
+                    ranked ? String.valueOf(rank++) : date.format(Instant.parse(r.timestamp())),
                     r.name(),
                     r.outcome(),
                     r.score(),
