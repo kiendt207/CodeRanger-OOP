@@ -1,8 +1,9 @@
 package coderanger.input;
 
-import coderanger.manager.GameManager;
 import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
+
+import coderanger.manager.GameManager;
 
 public class InputHandler extends KeyAdapter {
     private final GameManager manager;
@@ -13,16 +14,22 @@ public class InputHandler extends KeyAdapter {
 
     @Override
     public void keyTyped(KeyEvent e) {
-        // Chỉ nhận sự kiện gõ chữ và truyền ký tự tới GameManager xử lý logic
         char c = e.getKeyChar();
-        manager.handleCharacter(c);
+        // Đặc tả gốc: Chỉ nhận ký tự a-z ASCII và tự chuyển thành lowercase
+        if (Character.isLetter(c)) {
+            manager.handleCharacter(Character.toLowerCase(c));
+        }
     }
 
     @Override
     public void keyPressed(KeyEvent e) {
-        // Chỉ bắt phím Esc để bật/tắt tạm dừng game
-        if (e.getKeyCode() == KeyEvent.VK_ESCAPE) {
-            manager.togglePause();
+        // Dùng switch-case theo gợi ý của IDE để xử lý các phím chức năng
+        switch (e.getKeyCode()) {
+            case KeyEvent.VK_ESCAPE:
+                manager.togglePause();
+                break;
+            default:
+                break;
         }
     }
 }
