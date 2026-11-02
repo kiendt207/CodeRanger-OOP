@@ -1,39 +1,49 @@
 package coderanger.view;
 
+import coderanger.input.InputHandler;
+import coderanger.manager.GameManager;
+import coderanger.manager.GameRecord;
+import coderanger.resource.ResourceManager;
 import java.awt.BorderLayout;
-
+import java.util.function.Consumer;
 import javax.swing.JPanel;
 import javax.swing.Timer;
 
-import coderanger.input.InputHandler;
-import coderanger.manager.GameManager;
-import coderanger.resource.ResourceManager;
-
 public class PlayingScreen extends JPanel {
+    private final GameManager manager;
     private final GamePanel panel;
-    private final InputHandler inputHandler;
     private final Timer gameTimer;
+    private final Consumer<GameRecord> onGameFinished;
     private long lastTime;
 
     public PlayingScreen(GameManager manager, ResourceManager resources) {
-        this.setLayout(new BorderLayout());
-        
-        this.panel = new GamePanel(manager, resources);
-        this.inputHandler = new InputHandler(manager);
-        
-        this.add(panel, BorderLayout.CENTER);
-        this.addKeyListener(inputHandler);
-        this.setFocusable(true);
+        this(manager, resources, record -> { });
+    }
 
-        this.gameTimer = new Timer(16, e -> {
+    public PlayingScreen(
+            GameManager manager,
+            ResourceManager resources,
+            Consumer<GameRecord> onGameFinished) {
+        this.manager = manager;
+        this.onGameFinished = onGameFinished;
+        setLayout(new BorderLayout());
+        panel = new GamePanel(manager, resources);
+        add(panel, BorderLayout.CENTER);
+        addKeyListener(new InputHandler(manager));
+        setFocusable(true);
+
+        gameTimer = new Timer(16, event -> {
             long now = System.nanoTime();
-            double dt = (now - lastTime) / 1_000_000_000.0;
+            double dt = Math.min((now - lastTime) / 1_000_000_000.0, 0.05);
             lastTime = now;
-            
-            if (dt > 0.05) dt = 0.05; 
-            
             manager.update(dt);
             panel.repaint();
+
+            GameManager.GameState state = manager.getState();
+            if ((state == GameManager.GameState.WIN || state == GameManager.GameState.LOSS)
+                    && manager.getResult() != null) {
+                onGameFinished.accept(manager.getResult());
+            }
         });
     }
 
@@ -48,6 +58,6 @@ public class PlayingScreen extends JPanel {
     }
 
     public void requestGameFocus() {
-        this.requestFocusInWindow();
+        requestFocusInWindow();
     }
 }

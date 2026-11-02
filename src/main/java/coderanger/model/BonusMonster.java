@@ -121,4 +121,14 @@ public class BonusMonster extends Monster {
     public double getSpeed() {
         return speed;
     }
+
+    @Override public boolean isBonus() { return true; }
+
+    @Override public double getVerticalSpeed() {
+        double dx = PLAYER_X - (getX() + getWidth() / 2.0);
+        double dy = PLAYER_Y - (getY() + getHeight() / 2.0);
+        double d = Math.hypot(dx, dy);
+
+        return d == 0 ? 0.0 : speed * dy / d;
+    }
 }

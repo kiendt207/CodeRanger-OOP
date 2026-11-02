@@ -1,5 +1,6 @@
 package coderanger.model;
 
+import coderanger.util.GameConstants;
 import java.awt.BasicStroke;
 import java.awt.Color;
 import java.awt.Graphics2D;
@@ -14,8 +15,13 @@ public class Player extends GameObject {
 
     private int hp;
     private int shieldLayers;
+
     public Player() {
-        super(270 - WIDTH / 2.0, 820 - HEIGHT / 2.0, WIDTH, HEIGHT);
+        this(GameConstants.PLAYER_X, GameConstants.PLAYER_Y);
+    }
+
+    public Player(double x, double y) {
+        super(x - WIDTH / 2.0, y - HEIGHT / 2.0, WIDTH, HEIGHT);
         this.hp = MAX_HP;
         this.shieldLayers = 1;
     }
@@ -104,11 +110,15 @@ public class Player extends GameObject {
     }
 
     public boolean heal(int amount) {
-        if (hp >= MAX_HP){
+        if (amount < 0) {
+            throw new IllegalArgumentException("Healing amount must be non-negative");
+        }
+        if (amount == 0 || hp >= MAX_HP){
             return false;
         }
 
-        hp++;
+        hp = (int) Math.min(MAX_HP, (long) hp + amount);
+        if (hp > 0) setAlive(true);
         return true;
     }
 
@@ -116,7 +126,17 @@ public class Player extends GameObject {
         return hp;
     }
 
+    public boolean isDead() {
+        return hp == 0;
+    }
+
     public int getShieldLayers() {
         return shieldLayers;
+    }
+
+    public void reset() {
+        hp = MAX_HP;
+        shieldLayers = 1;
+        setAlive(true);
     }
 }

@@ -2,58 +2,68 @@ package coderanger.manager;
 
 import coderanger.model.BonusMonster;
 import coderanger.model.BossMonster;
+import coderanger.model.Monster;
 import coderanger.model.NormalMonster;
-
+import coderanger.util.GameConstants;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.Random;
 
 public class MonsterFactory {
-    private WordProvider wordProvider;
-    private Random random;
+    private final WordProvider wordProvider;
+    private final Random random;
+    private final Long resetSeed;
+    private final Difficulty difficulty = new Difficulty();
     private long sequence;
 
+    public MonsterFactory() {
+        this(new WordProvider(2026L), new Random(2026L), 2026L);
+    }
+
+    public MonsterFactory(long seed) {
+        this(new WordProvider(seed), new Random(seed), seed);
+    }
+
     public MonsterFactory(WordProvider wordProvider, Random random) {
-        this.wordProvider = wordProvider;
-        this.random = random;
-        this.sequence = 0;
+        this.wordProvider = Objects.requireNonNull(wordProvider, "wordProvider");
+        this.random = Objects.requireNonNull(random, "random");
+        this.resetSeed = null;
     }
 
-    // Hàm tiện ích tạo tọa độ X ngẫu nhiên (từ 65 đến 475 theo đặc tả)
-    private double getRandomSpawnX() {
-        return 65 + random.nextDouble() * (475 - 65);
+    private MonsterFactory(WordProvider wordProvider, Random random, long seed) {
+        this.wordProvider = Objects.requireNonNull(wordProvider, "wordProvider");
+        this.random = Objects.requireNonNull(random, "random");
+        this.resetSeed = seed;
     }
 
-    public NormalMonster createNormal(int level, double now, boolean minion) {
-        String word = wordProvider.nextNormal(level);
-        double spawnX = getRandomSpawnX();
-        double spawnY = minion ? 250 : -30; // Minion sinh ở Y=250, Normal sinh ở Y=-30
-        
-        // Tính tốc độ dựa trên công thức trong tài liệu, hoặc lấy từ Difficulty (ở đây làm mẫu tĩnh)
-        double speed = 55 + (level * 5); 
-        
-        sequence++;
-        return new NormalMonster(spawnX, spawnY, word, now, sequence, speed, minion);
+    public Monster createNormal(int level, double now, boolean minion) {
+        double x = 65.0 + random.nextDouble() * (GameConstants.WIDTH - 130.0);
+        double y = minion ? 250.0 : -30.0;
+        double speed = difficulty.normalSpeed(now);
+        return new NormalMonster(x, y, wordProvider.nextNormal(level), now,
+                sequence++, speed, minion);
     }
 
-    public BonusMonster createBonus(int level, double now) {
-        String word = wordProvider.nextBonus();
-        double spawnX = getRandomSpawnX();
-        double spawnY = -30;
-        
-        double speed = (55 + (level * 5)) * 1.35; // Nhanh hơn Normal
-        sequence++;
-        return new BonusMonster(spawnX, spawnY, word, now, sequence, speed);
+    public Monster createBonus(int level, double now) {
+        double x = 65.0 + random.nextDouble() * (GameConstants.WIDTH - 130.0);
+        double speed = difficulty.bonusSpeed(now);
+        return new BonusMonster(x, -30.0, wordProvider.nextBonus(), now, sequence++, speed);
     }
 
     public BossMonster createBoss(double now) {
-        List<List<String>> bossWords = new ArrayList<>();
-        bossWords.add(wordProvider.phaseWords(1));
-        bossWords.add(wordProvider.phaseWords(2));
-        bossWords.add(wordProvider.phaseWords(3));
-        
-        sequence++;
-        // Boss đứng cố định ở (270, 205)
-        return new BossMonster( bossWords, now, sequence);
+        List<List<String>> wordsByPhase = new ArrayList<>();
+        for (int phase = 1; phase <= 3; phase++) {
+            wordsByPhase.add(wordProvider.phaseWords(phase));
+        }
+        return new BossMonster(wordsByPhase, now, sequence++);
+    }
+
+    public void reset() {
+        sequence = 0;
+        wordProvider.reset();
+        if (resetSeed != null) {
+            random.setSeed(resetSeed);
+        }
     }
 }

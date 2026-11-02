@@ -5,7 +5,7 @@ import java.util.Locale;
 public abstract class Monster extends GameObject {
     private static final double QUICK_KILL_WINDOW = 1.5;
 
-    private final String fullWord;
+    private String fullWord;
     private final double spawnElapsed;
     private final long spawnSequence;
     private final int rewardScore;
@@ -67,6 +67,17 @@ public abstract class Monster extends GameObject {
         return fullWord;
     }
 
+    protected void replaceWord(String word) {
+        if (word == null || word.isBlank()
+                || !word.equals(word.toLowerCase(Locale.ROOT))) {
+            throw new IllegalArgumentException("Monster word must be non-empty and lowercase");
+        }
+        fullWord = word;
+        index = 0;
+        completed = false;
+        completedDirectly = false;
+    }
+
     public String getRemainingWord(){
         return fullWord.substring(index);
     }
@@ -107,4 +118,8 @@ public abstract class Monster extends GameObject {
     public void onDeath() {
         setAlive(false);
     }
+
+    public boolean isBonus() { return false; }
+    public boolean isBoss() { return false; }
+    public double getVerticalSpeed() { return 0.0; }
 }

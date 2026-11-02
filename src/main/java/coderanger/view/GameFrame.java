@@ -4,52 +4,57 @@ import coderanger.manager.GameManager;
 import coderanger.manager.GameRecord;
 import coderanger.resource.ResourceManager;
 import coderanger.util.GameConstants;
-
-import javax.swing.JFrame;
-import javax.swing.JPanel;
 import java.awt.CardLayout;
 import java.awt.Dimension;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
+import javax.swing.JFrame;
+import javax.swing.JPanel;
 
 public class GameFrame extends JFrame {
     private final CardLayout cardLayout;
     private final JPanel mainPanel;
-    
-    // Khai báo final cho các màn hình thành phần thuộc CardLayout
+    private final GameManager manager;
     private final MenuScreen menuScreen;
     private final PlayingScreen playingScreen;
     private final ResultsScreen resultsScreen;
     private final LeaderboardScreen leaderboardScreen;
 
     public GameFrame(GameManager manager, ResourceManager resources) {
-        this.cardLayout = new CardLayout();
-        this.mainPanel = new JPanel(cardLayout);
-        
-        this.setTitle("CodeRanger - Cyber Defense v1.0");
-        this.getContentPane().setPreferredSize(new Dimension(GameConstants.WIDTH, GameConstants.HEIGHT));
-        this.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        this.setResizable(false);
-        this.add(mainPanel);
-        this.pack();
-        this.setLocationRelativeTo(null);
+        this.manager = manager;
+        cardLayout = new CardLayout();
+        mainPanel = new JPanel(cardLayout);
 
-        // Khởi tạo các Screen với Callback Runnable/Consumer
-        this.menuScreen = new MenuScreen(
-            playerName -> {
-                manager.start(playerName);
-                showPlay();
-            },
-            this::showLeaderboard
-        );
-        
-        this.playingScreen = new PlayingScreen(manager, resources);
-        this.resultsScreen = new ResultsScreen(this::showMenu, this::showMenu); 
-        this.leaderboardScreen = new LeaderboardScreen(manager.getHistoryStore(), this::showMenu);
+        setTitle("CodeRanger - Cyber Defense v1.0");
+        getContentPane().setPreferredSize(new Dimension(GameConstants.WIDTH, GameConstants.HEIGHT));
+        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        setResizable(false);
+        add(mainPanel);
+        pack();
+        setLocationRelativeTo(null);
 
-        // Đăng ký các thẻ màn hình vào CardLayout
+        menuScreen = new MenuScreen(playerName -> {
+            manager.start(playerName);
+            showPlay();
+        }, this::showLeaderboard);
+        playingScreen = new PlayingScreen(manager, resources, this::showResults);
+        resultsScreen = new ResultsScreen(() -> {
+            manager.start(manager.getPlayerName());
+            showPlay();
+        }, this::showMenu);
+        leaderboardScreen = new LeaderboardScreen(manager.getHistoryStore(), this::showMenu);
+
         mainPanel.add(menuScreen, "MENU");
         mainPanel.add(playingScreen, "PLAY");
         mainPanel.add(resultsScreen, "RESULTS");
         mainPanel.add(leaderboardScreen, "LEADERBOARD");
+
+        addWindowFocusListener(new WindowAdapter() {
+            @Override
+            public void windowLostFocus(WindowEvent event) {
+                manager.pause();
+            }
+        });
     }
 
     public void showMenu() {
@@ -65,6 +70,9 @@ public class GameFrame extends JFrame {
     public void showResults(GameRecord record) {
         playingScreen.stopLoop();
         resultsScreen.showResult(record);
+        if (manager.getSaveErrorMessage() != null) {
+            resultsScreen.showSaveError(manager.getSaveErrorMessage());
+        }
         cardLayout.show(mainPanel, "RESULTS");
     }
 

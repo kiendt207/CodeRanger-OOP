@@ -24,6 +24,18 @@
     </dependencies>
 
     <build>
+        <resources>
+            <resource>
+                <directory>src/main/resources</directory>
+            </resource>
+            <resource>
+                <directory>src/main/java/coderanger/resource/word</directory>
+                <targetPath>words</targetPath>
+                <includes>
+                    <include>*.txt</include>
+                </includes>
+            </resource>
+        </resources>
         <plugins>
             <!-- Plugin cấu hình phiên bản Java 17 cho Maven Compiler -->
             <plugin>
@@ -33,6 +45,12 @@
                 <configuration>
                     <release>17</release>
                 </configuration>
+            </plugin>
+
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <version>3.2.5</version>
             </plugin>
 
             <!-- Plugin exec để chạy ứng dụng từ lệnh maven (mvn exec:java) -->
