@@ -183,33 +183,30 @@ class PlayerTest {
 
     @Test
     void healShouldNotExceedMaximumHp() {
-    Player player = createPlayer();
+        Player player = createPlayer();
 
-    player.takeDamage(4); // HP còn 2
-    assertTrue(player.heal(100));
-    assertEquals(3, player.getHp());
+        player.takeDamage(4); // HP còn 2
+        assertTrue(player.heal(1));
+        assertEquals(3, player.getHp());
 
-    assertTrue(player.heal(100));
-    assertEquals(4, player.getHp());
+        assertTrue(player.heal(100));
+        assertEquals(5, player.getHp());
 
-    assertTrue(player.heal(100));
-    assertEquals(5, player.getHp());
-
-    assertFalse(player.heal(100));
-    assertEquals(5, player.getHp());
-}
+        assertFalse(player.heal(1));
+        assertEquals(5, player.getHp());
+    }
 
     @Test
     void healShouldReturnFalseWhenPlayerIsDead() {
-    Player player = createPlayer();
+        Player player = createPlayer();
 
-    player.takeDamage(6); // HP về 0, Player chết
+        player.takeDamage(6); // HP về 0, Player chết
 
-    assertFalse(player.isAlive());
-
-    // Theo logic heal hiện tại, Player chết vẫn có thể được hồi HP.
-    // Test này sẽ FAIL nếu chưa sửa phương thức heal().
-}
+        assertFalse(player.isAlive());
+        assertFalse(player.heal(1));
+        assertEquals(0, player.getHp());
+        assertFalse(player.isAlive());
+    }
 
     // ================= Update =================
 

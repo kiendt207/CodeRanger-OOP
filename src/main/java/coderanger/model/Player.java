@@ -113,12 +113,11 @@ public class Player extends GameObject {
         if (amount < 0) {
             throw new IllegalArgumentException("Healing amount must be non-negative");
         }
-        if (amount == 0 || hp >= MAX_HP){
+        if (amount == 0 || hp == 0 || hp >= MAX_HP){
             return false;
         }
 
         hp = (int) Math.min(MAX_HP, (long) hp + amount);
-        if (hp > 0) setAlive(true);
         return true;
     }
 
