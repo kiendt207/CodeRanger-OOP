@@ -77,4 +77,11 @@ public class WaveManager {
     public int getCurrentWave() { return currentWave; }
     public boolean isBossDue(double now) { return now >= 240.0 && !bossSpawned; }
     public void markBossSpawned() { this.bossSpawned = true; }
+
+    public void reset() {
+        normalElapsed = 0.0;
+        bonusElapsed = 0.0;
+        currentWave = 1;
+        bossSpawned = false;
+    }
 }
