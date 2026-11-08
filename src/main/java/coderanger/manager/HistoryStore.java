@@ -4,7 +4,8 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardOpenOption;
+import java.nio.file.AtomicMoveNotSupportedException;
+import java.nio.file.StandardCopyOption;
 import java.time.DateTimeException;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -13,6 +14,10 @@ import java.util.List;
 import java.util.Objects;
 
 public class HistoryStore {
+    private static final int MAX_RECORDS = 20;
+    private static final String HEADER =
+            "timestamp\tname\toutcome\tscore\tseconds\tcorrect\twrong\taccuracy";
+
     private final Path historyFile;
 
     public HistoryStore() {
@@ -25,31 +30,34 @@ public class HistoryStore {
 
     public void save(GameRecord record) throws IOException {
         Objects.requireNonNull(record, "record");
-        Path parent = historyFile.toAbsolutePath().getParent();
-        if (parent != null) {
-            Files.createDirectories(parent);
+        Path absoluteFile = historyFile.toAbsolutePath();
+        Path parent = absoluteFile.getParent();
+        Files.createDirectories(parent);
+
+        List<GameRecord> records = readValidRecords();
+        records.add(record);
+        records.sort(Comparator.comparing(r -> Instant.parse(r.timestamp())));
+        if (records.size() > MAX_RECORDS) {
+            records = new ArrayList<>(records.subList(records.size() - MAX_RECORDS, records.size()));
         }
 
-        String line = String.join("\t",
-                clean(record.timestamp()),
-                clean(record.name()),
-                clean(record.outcome()),
-                Long.toString(record.score()),
-                Double.toString(record.seconds()),
-                Integer.toString(record.correctChars()),
-                Integer.toString(record.wrongChars()),
-                Double.toString(record.accuracy()),
-                Integer.toString(record.monstersKilled()),
-                Integer.toString(record.quickKills()),
-                Integer.toString(record.bonusKills()),
-                Integer.toString(record.bossWords()),
-                Double.toString(record.wpm()),
-                Integer.toString(record.wave()),
-                Integer.toString(record.hp()),
-                Integer.toString(record.shield()));
+        StringBuilder contents = new StringBuilder(HEADER).append(System.lineSeparator());
+        for (GameRecord savedRecord : records) {
+            contents.append(serialize(savedRecord)).append(System.lineSeparator());
+        }
 
-        Files.writeString(historyFile, line + System.lineSeparator(), StandardCharsets.UTF_8,
-                StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+        Path temporaryFile = Files.createTempFile(parent, ".history-", ".tmp");
+        try {
+            Files.writeString(temporaryFile, contents, StandardCharsets.UTF_8);
+            try {
+                Files.move(temporaryFile, absoluteFile,
+                        StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
+            } catch (AtomicMoveNotSupportedException e) {
+                Files.move(temporaryFile, absoluteFile, StandardCopyOption.REPLACE_EXISTING);
+            }
+        } finally {
+            Files.deleteIfExists(temporaryFile);
+        }
     }
 
     public List<GameRecord> readRecent() {
@@ -79,6 +87,9 @@ public class HistoryStore {
         int corruptLines = 0;
         try {
             for (String line : Files.readAllLines(historyFile, StandardCharsets.UTF_8)) {
+                if (line.equals(HEADER)) {
+                    continue;
+                }
                 try {
                     records.add(parse(line));
                 } catch (IllegalArgumentException | DateTimeException e) {
@@ -91,10 +102,36 @@ public class HistoryStore {
         return new ReadResult(records, corruptLines);
     }
 
+    private List<GameRecord> readValidRecords() throws IOException {
+        if (!Files.exists(historyFile)) {
+            return new ArrayList<>();
+        }
+
+        List<GameRecord> records = new ArrayList<>();
+        for (String line : Files.readAllLines(historyFile, StandardCharsets.UTF_8)) {
+            if (line.equals(HEADER)) {
+                continue;
+            }
+            try {
+                records.add(parse(line));
+            } catch (IllegalArgumentException | DateTimeException ignored) {
+                // Corrupt rows are excluded when the capped history file is rewritten.
+            }
+        }
+        return records;
+    }
+
     private static GameRecord parse(String line) {
         String[] fields = line.split("\t", -1);
+        if (fields.length == 8) {
+            Instant.parse(fields[0]);
+            return new GameRecord(fields[0], fields[1], fields[2],
+                    Long.parseLong(fields[3]), Double.parseDouble(fields[4]),
+                    Integer.parseInt(fields[5]), Integer.parseInt(fields[6]),
+                    Double.parseDouble(fields[7]), 0, 0, 0, 0, 0.0, 0, 0, 0);
+        }
         if (fields.length != 16) {
-            throw new IllegalArgumentException("Expected 16 history fields");
+            throw new IllegalArgumentException("Expected 8 history fields");
         }
         Instant.parse(fields[0]);
         return new GameRecord(fields[0], fields[1], fields[2],
@@ -105,6 +142,18 @@ public class HistoryStore {
                 Integer.parseInt(fields[11]), Double.parseDouble(fields[12]),
                 Integer.parseInt(fields[13]), Integer.parseInt(fields[14]),
                 Integer.parseInt(fields[15]));
+    }
+
+    private static String serialize(GameRecord record) {
+        return String.join("\t",
+                clean(record.timestamp()),
+                clean(record.name()),
+                clean(record.outcome()),
+                Long.toString(record.score()),
+                Double.toString(record.seconds()),
+                Integer.toString(record.correctChars()),
+                Integer.toString(record.wrongChars()),
+                Double.toString(record.accuracy()));
     }
 
     private static String clean(String value) {

@@ -51,7 +51,7 @@
 - `TargetManager` khóa mục tiêu theo thời gian dự kiến tới vạch nguy hiểm; các mục tiêu thường/minion được ưu tiên hơn Boss khi bắt đầu khóa. Một mục tiêu Boss đã khóa không bị minion mới cướp khóa.
 - `GameManager` điều phối quick kill, shockwave cooldown 5 giây, buff Bonus, chuyển wave 7 ở giây 240, penalty theo timer của Boss, victory animation 2,5 giây và chụp/lưu kết quả đúng một lần.
 - `MonsterFactory` sử dụng `Random(2026)` theo mặc định và có thể reset để replay tái lập; factory lấy từ qua `WordProvider`. Maven đóng gói các file trong `src/main/java/coderanger/resource/word` dưới classpath `words/`.
-- `HistoryStore` ghi đủ 16 cột TSV vào `${user.home}/.coderanger/history.tsv`; lỗi I/O được báo nhưng không làm đổi luồng trạng thái game.
+- `HistoryStore` ghi tối đa 20 bản ghi mới nhất theo schema 8 cột trong README; ghi file qua file tạm cùng thư mục và atomic move khi filesystem hỗ trợ. Các file 16 cột cũ vẫn được đọc để tương thích.
 - `GameManager.getMonsters()` và `getEffects()` trả về snapshot chỉ đọc; thay đổi entity phải đi qua manager.
 - `GameFrame` nối Menu, Playing, Results và Leaderboard qua `CardLayout`; cửa sổ mất focus tự pause game. `Main` khởi tạo các dependency và hiện menu.
 - `mvn clean test` dùng Maven Surefire hỗ trợ JUnit 5. Bộ test headless hiện bao gồm tích hợp combat/Boss, lifecycle, persistence, input và mô phỏng soak 15 phút.

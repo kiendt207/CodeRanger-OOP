@@ -6,7 +6,7 @@ public final class GameConstants {
     public static final int PLAYER_X = 270;
     public static final int PLAYER_Y = 820;
     public static final int DANGER_Y = 760;
-    public static final double BOSS_START = 80.0; // Boss xuất hiện ở giây 80 theo yêu cầu mới
+    public static final double BOSS_START = 240.0;
 
     private GameConstants() {}
 }

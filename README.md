@@ -1,6 +1,6 @@
 # CodeRanger
 
-Game phòng thủ gõ phím 2D một người chơi, viết bằng **Java 17**, **Swing + Graphics2D**, **Maven**.
+Game phòng thủ gõ phím 2D một người chơi, viết bằng **Java 25**, **Swing + Graphics2D**, **Maven**.
 Chạy độc lập, không cần mạng, không cần database.
 
 > Một lập trình viên bước vào thế giới số để chống virus và cứu hệ thống máy chủ.
@@ -20,7 +20,7 @@ Không dùng lane.
 
 ## Yêu cầu
 
-- JDK 17 trở lên
+- JDK 25 trở lên
 - Maven 3.x
 
 ## Build và chạy
@@ -72,7 +72,8 @@ Quy tắc chính:
 ## Lịch sử và Leaderboard
 
 - Lưu tối đa **20** bản ghi mới nhất tại `${user.home}/.coderanger/history.tsv` (UTF-8).
-- Header: `timestamp  name  outcome  score  seconds  correct  wrong  accuracy` (phân tách bằng tab).
+- Header: `timestamp  name  outcome  score  seconds  correct  wrong  accuracy` (phân tách bằng tab);
+  các file 16 cột cũ vẫn được đọc để tương thích.
 - Ghi bằng file tạm cùng thư mục rồi `Files.move` (ATOMIC_MOVE nếu filesystem hỗ trợ).
 - File thiếu → danh sách rỗng; dòng hỏng bị bỏ qua và Leaderboard hiện cảnh báo nhỏ.
 - Màn Leaderboard hiện **top 10 score** và **10 trận gần nhất**.
@@ -87,7 +88,7 @@ Luồng màn hình: `MENU → PLAYING ↔ PAUSED → (VICTORY_ANIMATION → WIN 
 ```
 pom.xml
 README.md
-docs/CodeRanger_Spec.docx
+docs/memberD-contracts.md
 src/main/java/coderanger/
 ├── Main.java
 ├── model/      GameObject, Monster, NormalMonster, BonusMonster, BossMonster, Player, LaserEffect
@@ -96,10 +97,12 @@ src/main/java/coderanger/
 ├── view/       GameFrame, GamePanel, MenuScreen, PlayingScreen, ResultsScreen, LeaderboardScreen
 ├── input/      InputHandler
 ├── resource/   ResourceManager
+│   └── word/   normal0–3.txt, bonus.txt, boss1–3.txt
 └── util/       GameConstants
-src/main/resources/words/   normal0–3.txt, bonus.txt, boss1–3.txt
 src/test/java/coderanger/{model,manager}/
 ```
+
+Maven đóng gói các file từ `src/main/java/coderanger/resource/word/` vào classpath `/words/`.
 
 Nguyên tắc OOP áp dụng: encapsulation (mọi field `private`), abstraction (`GameObject`, `Monster`),
 inheritance (`Monster` → Normal/Bonus/Boss), polymorphism (`update`/`render`/`onDeath`),
@@ -136,6 +139,6 @@ git push -u origin feature/memberA-short-topic
 
 ## Tài liệu
 
-Đặc tả đầy đủ (luật chơi, hằng số, hợp đồng method, kế hoạch 8 tuần) nằm ở
-[`docs/CodeRanger_Spec.docx`](docs/CodeRanger_Spec.docx). Mọi thay đổi hằng số core phải có PR cập nhật
+Ghi chú hợp đồng và tích hợp của Member D nằm trong
+[`docs/memberD-contracts.md`](docs/memberD-contracts.md). Mọi thay đổi hằng số core phải có PR cập nhật
 tài liệu và test.

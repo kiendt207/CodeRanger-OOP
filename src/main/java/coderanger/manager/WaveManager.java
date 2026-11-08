@@ -3,6 +3,7 @@ package coderanger.manager;
 import coderanger.model.BonusMonster;
 import coderanger.model.Monster;
 import coderanger.model.NormalMonster;
+import coderanger.util.GameConstants;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -26,7 +27,7 @@ public class WaveManager {
     public List<Monster> update(double dt, double now, List<Monster> currentMonsters) {
         List<Monster> newSpawns = new ArrayList<>();
 
-        if (now >= 240.0) {
+        if (now >= GameConstants.BOSS_START) {
             this.currentWave = 7;
             return newSpawns;
         }
@@ -75,7 +76,9 @@ public class WaveManager {
     }
 
     public int getCurrentWave() { return currentWave; }
-    public boolean isBossDue(double now) { return now >= 240.0 && !bossSpawned; }
+    public boolean isBossDue(double now) {
+        return now >= GameConstants.BOSS_START && !bossSpawned;
+    }
     public void markBossSpawned() { this.bossSpawned = true; }
 
     public void reset() {
