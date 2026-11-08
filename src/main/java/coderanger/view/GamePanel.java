@@ -48,7 +48,7 @@ public class GamePanel extends JPanel {
         g2d.setColor(new Color(255, 50, 50, 100));
         g2d.drawLine(0, GameConstants.DANGER_Y, GameConstants.WIDTH, GameConstants.DANGER_Y);
 
-        if (!manager.getState().toString().equals("VICTORY_ANIMATION")) {
+        if (manager.getState() != GameManager.GameState.VICTORY_ANIMATION) {
             if (manager.getPlayer() != null) manager.getPlayer().render(g2d);
             manager.getMonsters().forEach(m -> m.render(g2d));
             manager.getEffects().forEach(e -> e.render(g2d));
@@ -93,13 +93,9 @@ public class GamePanel extends JPanel {
             g2d.drawString("HP: " + manager.getPlayer().getHp() + "/5", 10, 45);
             
             g2d.setColor(new Color(100, 200, 255));
-            g2d.drawString("KHIÊN [ENTER]: " + manager.getPlayer().getShieldLayers() + "/4", 320, 25);
-            g2d.setColor(Color.ORANGE);
-            g2d.drawString("BOM [1]: READY", 320, 45);
-            g2d.setColor(Color.MAGENTA);
-            g2d.drawString("T.CÔNG [2]: READY", 320, 65);
+            g2d.drawString("SHIELD: " + manager.getPlayer().getShieldLayers() + "/3", 320, 25);
             g2d.setColor(Color.YELLOW);
-            g2d.drawString("COMBO: " + manager.getStats().getStreak(), 320, 85); 
+            g2d.drawString("COMBO: " + manager.getStats().getStreak(), 320, 45);
         }
     }
 }

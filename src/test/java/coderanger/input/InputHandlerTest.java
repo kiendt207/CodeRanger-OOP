@@ -44,6 +44,28 @@ class InputHandlerTest {
         assertEquals(0, manager.getStats().getStreak());
 
         handler.keyPressed(escape);
+        assertEquals(GameManager.GameState.PAUSED, manager.getState());
+        handler.keyReleased(new KeyEvent(source, KeyEvent.KEY_RELEASED, 0, 0,
+                KeyEvent.VK_ESCAPE, KeyEvent.CHAR_UNDEFINED));
+        handler.keyPressed(escape);
         assertEquals(GameManager.GameState.PLAYING, manager.getState());
+    }
+
+    @Test
+    void ignoresRepeatedTypedEventsWhileAKeyIsHeld() {
+        GameManager manager = new GameManager(new HistoryStore(), new MonsterFactory());
+        manager.start("Tester");
+        InputHandler handler = new InputHandler(manager);
+        JPanel source = new JPanel();
+
+        handler.keyPressed(new KeyEvent(source, KeyEvent.KEY_PRESSED, 0, 0,
+                KeyEvent.VK_A, 'a'));
+        handler.keyTyped(new KeyEvent(source, KeyEvent.KEY_TYPED, 0, 0,
+                KeyEvent.VK_UNDEFINED, 'a'));
+        handler.keyTyped(new KeyEvent(source, KeyEvent.KEY_TYPED, 1, 0,
+                KeyEvent.VK_UNDEFINED, 'a'));
+
+        assertEquals(1, manager.getStats().snapshot(
+                "Tester", 0, "PLAYING", 1, manager.getPlayer()).wrongChars());
     }
 }

@@ -87,15 +87,17 @@ class GameLifecycleTest {
     }
 
     @Test
-    void historyStoreWritesSixteenTabSeparatedFields(@TempDir Path tempDir) throws IOException {
+    void historyStoreWritesEightTabSeparatedFields(@TempDir Path tempDir) throws IOException {
         Path historyPath = tempDir.resolve("history.tsv");
         HistoryStore store = new HistoryStore(historyPath);
         store.save(new GameRecord(
                 "2026-11-02T00:00:00Z", "A\tB", "WIN", 10, 2.5, 5, 1, 83.3,
                 2, 1, 0, 9, 24.0, 7, 5, 1));
 
-        String[] fields = Files.readString(historyPath).strip().split("\t");
-        assertEquals(16, fields.length);
+        var lines = Files.readAllLines(historyPath, StandardCharsets.UTF_8);
+        assertEquals("timestamp\tname\toutcome\tscore\tseconds\tcorrect\twrong\taccuracy", lines.get(0));
+        String[] fields = lines.get(1).split("\t");
+        assertEquals(8, fields.length);
         assertEquals("A B", fields[1]);
 
         store.save(new GameRecord(
@@ -106,6 +108,39 @@ class GameLifecycleTest {
         assertEquals(1, store.countCorruptLines());
         assertEquals("Second", store.top10().get(0).name());
         assertEquals("Second", store.readRecent().get(0).name());
+    }
+
+    @Test
+    void historyStoreRetainsOnlyTwentyMostRecentRecords(@TempDir Path tempDir) throws IOException {
+        Path historyPath = tempDir.resolve("history.tsv");
+        HistoryStore store = new HistoryStore(historyPath);
+
+        for (int i = 0; i < 25; i++) {
+            store.save(new GameRecord(
+                    Instant.parse("2026-11-02T00:00:00Z").plusSeconds(i).toString(),
+                    "Game " + i, "WIN", i, 1.0, 1, 0, 100.0,
+                    0, 0, 0, 0, 0.0, 1, 5, 1));
+        }
+
+        assertEquals(21, Files.readAllLines(historyPath, StandardCharsets.UTF_8).size());
+        assertEquals(20, store.readRecent().size());
+        assertEquals("Game 24", store.readRecent().get(0).name());
+        assertEquals("Game 5", store.readRecent().get(19).name());
+        assertEquals(10, store.top10().size());
+    }
+
+    @Test
+    void historyStoreReadsLegacySixteenFieldRecords(@TempDir Path tempDir) throws IOException {
+        Path historyPath = tempDir.resolve("history.tsv");
+        Files.writeString(historyPath,
+                "2026-11-02T00:00:00Z\tLegacy\tWIN\t10\t2.5\t5\t1\t83.3"
+                        + "\t2\t1\t0\t9\t24.0\t7\t5\t1" + System.lineSeparator(),
+                StandardCharsets.UTF_8);
+
+        GameRecord record = new HistoryStore(historyPath).readRecent().get(0);
+        assertEquals("Legacy", record.name());
+        assertEquals(2, record.monstersKilled());
+        assertEquals(9, record.bossWords());
     }
 
     private static MonsterFactory noSpawnFactory() {
