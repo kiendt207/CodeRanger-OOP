@@ -70,6 +70,10 @@ public class GameStats {
     public int getMonstersKilled() { return monstersKilled; }
     public int getQuickKills() { return quickKills; }
     public int getBonusKills() { return bonusKills; }
+    public int getCorrectChars() { return correctChars; }
+    public int getWrongChars() { return wrongChars; }
+    public int getBossWords() { return bossWords; }
+    public boolean isBossKilled() { return bossKilled; }
 
     public void recordBossWord() {
         bossWords++;
@@ -109,7 +113,8 @@ public class GameStats {
             wpm,
             wave,
             player != null ? player.getHp() : 0,
-            player != null ? player.getShieldLayers() : 0
+            player != null ? player.getShieldLayers() : 0,
+            peakStreak
         );
     }
 

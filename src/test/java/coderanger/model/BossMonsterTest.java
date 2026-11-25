@@ -1,13 +1,12 @@
 package coderanger.model;
 
-import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.*;
 
 import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
 import java.util.ArrayList;
 import java.util.List;
-
-import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Test;
 
 class BossMonsterTest {
 
@@ -34,23 +33,24 @@ class BossMonsterTest {
         boss.completeWord();
     }
 
-    // ================= Constructor =================
-
     @Test
-    void constructorShouldInitializeValues() {
+    void constructorShouldInitializeCenteredPositionAndValues() {
         BossMonster boss = createBoss();
 
-        assertEquals(270, boss.getX());
-        assertEquals(205, boss.getY());
+        assertEquals(195.0, boss.getX());
+        assertEquals(160.0, boss.getY());
+        assertEquals(270.0, boss.getCenterX());
+        assertEquals(205.0, boss.getCenterY());
         assertEquals(150, boss.getWidth());
         assertEquals(90, boss.getHeight());
 
         assertEquals("apple", boss.getCurrentWord());
+        assertEquals("apple", boss.getFullWord());
         assertEquals("apple", boss.getRemainingWord());
 
         assertEquals(9, boss.getHp());
         assertEquals(1, boss.getPhase());
-        assertEquals(14.0, boss.getCountdown());
+        assertEquals(11.0, boss.getCountdown());
 
         assertTrue(boss.isAlive());
         assertFalse(boss.isCompleted());
@@ -108,16 +108,13 @@ class BossMonsterTest {
     }
 
     @Test
-void constructorShouldRejectWordTooShortForPhaseTwo() {
-    List<List<String>> words = createWords();
+    void constructorShouldRejectWordTooShortForPhaseTwo() {
+        List<List<String>> words = createWords();
+        words.set(1, new ArrayList<>(List.of("monstr", "keyboard", "program")));
 
-    words.set(1, new ArrayList<>(
-            List.of("monstr", "keyboard", "program")
-    ));
-
-    assertThrows(IllegalArgumentException.class,
-            () -> new BossMonster(words, 0, 1));
-}
+        assertThrows(IllegalArgumentException.class,
+                () -> new BossMonster(words, 0, 1));
+    }
 
     @Test
     void constructorShouldRejectWordTooShortForPhaseThree() {
@@ -128,14 +125,13 @@ void constructorShouldRejectWordTooShortForPhaseTwo() {
                 () -> new BossMonster(words, 0, 1));
     }
 
-    // ================= Typing =================
-
     @Test
     void checkNextCharShouldAcceptCorrectCharacter() {
         BossMonster boss = createBoss();
 
         assertTrue(boss.checkNextChar('a'));
         assertEquals(1, boss.getCurrentWordIndex());
+        assertEquals(1, boss.getTypedCharacters());
         assertEquals("pple", boss.getRemainingWord());
     }
 
@@ -178,8 +174,6 @@ void constructorShouldRejectWordTooShortForPhaseTwo() {
         assertFalse(boss.checkNextChar('a'));
     }
 
-    // ================= Complete Word =================
-
     @Test
     void completeWordShouldReturnFalseIfWordNotCompleted() {
         BossMonster boss = createBoss();
@@ -219,7 +213,7 @@ void constructorShouldRejectWordTooShortForPhaseTwo() {
 
         assertEquals(2, boss.getPhase());
         assertEquals(6, boss.getHp());
-        assertEquals(16.0, boss.getCountdown());
+        assertEquals(13.0, boss.getCountdown());
     }
 
     @Test
@@ -239,7 +233,6 @@ void constructorShouldRejectWordTooShortForPhaseTwo() {
         BossMonster boss = createBoss();
 
         boolean result = false;
-
         for (int i = 0; i < 9; i++) {
             typeCurrentWord(boss);
             result = boss.completeWord();
@@ -248,15 +241,13 @@ void constructorShouldRejectWordTooShortForPhaseTwo() {
         assertTrue(result);
     }
 
-    // ================= Countdown =================
-
     @Test
     void countdownShouldDecreaseWithUpdate() {
         BossMonster boss = createBoss();
 
         boss.update(2.0);
 
-        assertEquals(12.0, boss.getCountdown());
+        assertEquals(9.0, boss.getCountdown());
     }
 
     @Test
@@ -265,14 +256,14 @@ void constructorShouldRejectWordTooShortForPhaseTwo() {
 
         boss.update(20.0);
 
-        assertEquals(14.0, boss.getCountdown());
+        assertEquals(11.0, boss.getCountdown());
     }
 
     @Test
     void timeoutShouldTriggerSkill() {
         BossMonster boss = createBoss();
 
-        boss.update(14.0);
+        boss.update(11.0);
 
         assertTrue(boss.consumeSkillPending());
     }
@@ -281,7 +272,7 @@ void constructorShouldRejectWordTooShortForPhaseTwo() {
     void skillPendingShouldBeConsumedOnlyOnce() {
         BossMonster boss = createBoss();
 
-        boss.update(14.0);
+        boss.update(11.0);
 
         assertTrue(boss.consumeSkillPending());
         assertFalse(boss.consumeSkillPending());
@@ -292,8 +283,7 @@ void constructorShouldRejectWordTooShortForPhaseTwo() {
         BossMonster boss = createBoss();
 
         boss.checkNextChar(boss.getCurrentWord().charAt(0));
-
-        boss.update(14.0);
+        boss.update(11.0);
 
         assertEquals(0, boss.getCurrentWordIndex());
     }
@@ -302,7 +292,7 @@ void constructorShouldRejectWordTooShortForPhaseTwo() {
     void timeoutShouldKeepHpUnchanged() {
         BossMonster boss = createBoss();
 
-        boss.update(14.0);
+        boss.update(11.0);
 
         assertEquals(9, boss.getHp());
     }
@@ -311,32 +301,29 @@ void constructorShouldRejectWordTooShortForPhaseTwo() {
     void timeoutShouldKeepPhaseUnchanged() {
         BossMonster boss = createBoss();
 
-        boss.update(14.0);
+        boss.update(11.0);
 
         assertEquals(1, boss.getPhase());
     }
-
-    // ================= Summon Minions =================
 
     @Test
     void phaseOneShouldNotSummonMinions() {
         BossMonster boss = createBoss();
 
-        boss.update(14.0);
+        boss.update(11.0);
 
         assertFalse(boss.summonMinions());
     }
 
     @Test
-    void phaseTwoShouldSummonMinionAfterTenSeconds() {
+    void phaseTwoShouldSummonMinionAfterSevenSeconds() {
         BossMonster boss = createBoss();
 
-        // Chuyển sang phase 2
         completeCurrentWord(boss);
         completeCurrentWord(boss);
         completeCurrentWord(boss);
 
-        boss.update(10.0);
+        boss.update(7.0);
 
         assertTrue(boss.summonMinions());
     }
@@ -349,13 +336,11 @@ void constructorShouldRejectWordTooShortForPhaseTwo() {
         completeCurrentWord(boss);
         completeCurrentWord(boss);
 
-        boss.update(10.0);
+        boss.update(7.0);
 
         assertTrue(boss.summonMinions());
         assertFalse(boss.summonMinions());
     }
-
-    // ================= Death =================
 
     @Test
     void onDeathShouldMarkBossDead() {
@@ -377,27 +362,24 @@ void constructorShouldRejectWordTooShortForPhaseTwo() {
         assertEquals(1, boss.getPhase());
     }
 
-    // ================= Bounds =================
-
     @Test
-    void boundsShouldMatchBossDimensions() {
+    void boundsShouldMatchCenteredBossDimensions() {
         BossMonster boss = createBoss();
 
-        assertEquals(270, boss.getBounds().getX());
-        assertEquals(205, boss.getBounds().getY());
-        assertEquals(150, boss.getBounds().getWidth());
-        assertEquals(90, boss.getBounds().getHeight());
+        assertEquals(195.0, boss.getBounds().getX());
+        assertEquals(160.0, boss.getBounds().getY());
+        assertEquals(150.0, boss.getBounds().getWidth());
+        assertEquals(90.0, boss.getBounds().getHeight());
+        assertEquals(270.0, boss.getBounds().getCenterX());
+        assertEquals(205.0, boss.getBounds().getCenterY());
     }
-
-    // ================= Rendering =================
 
     @Test
     void renderShouldNotThrowException() {
         BossMonster boss = createBoss();
+        boss.checkNextChar('a');
 
-        BufferedImage image = new BufferedImage(
-                600, 900, BufferedImage.TYPE_INT_ARGB);
-
+        BufferedImage image = new BufferedImage(600, 900, BufferedImage.TYPE_INT_ARGB);
         Graphics2D g = image.createGraphics();
 
         try {
@@ -410,12 +392,9 @@ void constructorShouldRejectWordTooShortForPhaseTwo() {
     @Test
     void renderShouldNotThrowWhenBossIsDead() {
         BossMonster boss = createBoss();
-
         boss.onDeath();
 
-        BufferedImage image = new BufferedImage(
-                600, 900, BufferedImage.TYPE_INT_ARGB);
-
+        BufferedImage image = new BufferedImage(600, 900, BufferedImage.TYPE_INT_ARGB);
         Graphics2D g = image.createGraphics();
 
         try {

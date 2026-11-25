@@ -6,20 +6,22 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import coderanger.model.Monster;
 import coderanger.model.NormalMonster;
 import coderanger.model.Player;
+import coderanger.util.GameConstants;
 import java.util.ArrayList;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 
 class CoreManagerTest {
     @Test
-    void difficultyUsesSixtySecondLevelsAndCapsAtLevelFour() {
+    void difficultyUsesEightSemesterTiersAndDisablesNormalsAtBossSemester() {
         Difficulty difficulty = new Difficulty();
 
         assertEquals(0, difficulty.level(-1));
-        assertEquals(0, difficulty.level(59.99));
-        assertEquals(1, difficulty.level(60));
-        assertEquals(4, difficulty.level(240));
-        assertEquals(Double.MAX_VALUE, difficulty.normalInterval(240));
+        assertEquals(0, difficulty.level(34.99));
+        assertEquals(1, difficulty.level(35.0));
+        assertEquals(6, difficulty.level(210.0));
+        assertEquals(7, difficulty.level(GameConstants.BOSS_START));
+        assertEquals(Double.MAX_VALUE, difficulty.normalInterval(GameConstants.BOSS_START));
     }
 
     @Test
@@ -47,11 +49,11 @@ class CoreManagerTest {
         CountingFactory factory = new CountingFactory();
         WaveManager waves = new WaveManager(new Difficulty(), factory);
 
-        waves.update(3.0, 3.0, List.of());
+        waves.update(2.4, 2.4, List.of());
         assertEquals(1, factory.normalCount);
 
         List<Monster> capped = new ArrayList<>();
-        for (int i = 0; i < 5; i++) {
+        for (int i = 0; i < 6; i++) {
             capped.add(new NormalMonster(100, 100, "word", 0, i, 0, false));
         }
         waves.update(30.0, 30.0, capped);
@@ -59,6 +61,16 @@ class CoreManagerTest {
 
         waves.update(0.0, 30.0, List.of());
         assertEquals(2, factory.normalCount);
+    }
+
+    @Test
+    void streakEscalationIncreasesSpawnRateMaxCapAndMonsterSpeed() {
+        Difficulty difficulty = new Difficulty();
+        assertTrue(difficulty.effectiveNormalInterval(10.0, 25) < difficulty.normalInterval(10.0));
+        assertTrue(difficulty.effectiveMaxNormals(10.0, 25) > difficulty.maxNormals(10.0));
+        assertTrue(difficulty.effectiveNormalSpeed(10.0, 25) > difficulty.normalSpeed(10.0));
+        assertEquals("OVERDRIVE II", difficulty.streakLabel(25));
+        assertEquals("FEVER MAX!", difficulty.streakLabel(45));
     }
 
     @Test
@@ -73,7 +85,7 @@ class CoreManagerTest {
 
     @Test
     void bossFactoryUsesWordsThatMatchEachPhaseLength() {
-        Monster boss = new MonsterFactory(2026L).createBoss(240.0);
+        Monster boss = new MonsterFactory(2026L).createBoss(GameConstants.BOSS_START);
         assertTrue(boss.isBoss());
         assertTrue(boss.getRemainingWord().length() >= 5);
         assertTrue(boss.getRemainingWord().length() <= 6);

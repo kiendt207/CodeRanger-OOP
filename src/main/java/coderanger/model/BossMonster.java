@@ -1,5 +1,6 @@
 package coderanger.model;
 
+import coderanger.util.GameConstants;
 import java.awt.Color;
 import java.awt.Font;
 import java.awt.Graphics2D;
@@ -11,20 +12,19 @@ import java.util.Objects;
 
 public class BossMonster extends Monster {
 
-    private static final int MAX_HP = 9;
-    private static final int WORDS_PER_PHASE = 3;
-    private static final int BOSS_WIDTH = 150;
-    private static final int BOSS_HEIGHT = 90;
+    public static final int MAX_HP = 9;
+    public static final int WORDS_PER_PHASE = 3;
+    public static final int BOSS_WIDTH = 150;
+    public static final int BOSS_HEIGHT = 90;
+    public static final int MAX_MINIONS = 4;
 
     private static final double[] PHASE_COUNTDOWNS = {
-        14.0, 16.0, 18.0
+        11.0, 13.0, 15.0
     };
 
     private static final double[] SUMMON_INTERVALS = {
-        0.0, 10.0, 8.0
+        0.0, 7.0, 5.5
     };
-
-    private static final int MAX_MINIONS = 3;
 
     private final List<List<String>> wordLists;
 
@@ -38,22 +38,17 @@ public class BossMonster extends Monster {
     private double wordElapsed;
     private double summonElapsed;
 
-    // GameManager đọc các trạng thái này để xử lý gameplay.
     private boolean skillPending;
     private boolean summonPending;
 
-    /**
-     * @param phaseWords danh sách 3 phase, mỗi phase chứa các từ của boss
-     * @param elapsed thời điểm spawn của boss
-     * @param seq thứ tự spawn
-     */
     public BossMonster(
             List<List<String>> phaseWords,
             double elapsed,
             long seq) {
 
         super(
-            270, 205,
+            GameConstants.BOSS_CENTER_X - BOSS_WIDTH / 2.0,
+            GameConstants.BOSS_CENTER_Y - BOSS_HEIGHT / 2.0,
             BOSS_WIDTH, BOSS_HEIGHT,
             getFirstWord(phaseWords),
             elapsed, seq, 100
@@ -62,7 +57,6 @@ public class BossMonster extends Monster {
         validateWordLists(phaseWords);
 
         this.wordLists = new ArrayList<>();
-
         for (List<String> words : phaseWords) {
             this.wordLists.add(
                 Collections.unmodifiableList(new ArrayList<>(words))
@@ -99,19 +93,14 @@ public class BossMonster extends Monster {
 
     private static void validateWordLists(List<List<String>> words) {
         if (words.size() != 3) {
-            throw new IllegalArgumentException(
-                "Boss phải có đúng 3 phase"
-            );
+            throw new IllegalArgumentException("Boss phải có đúng 3 phase");
         }
 
         for (int p = 0; p < 3; p++) {
             List<String> phaseWords = words.get(p);
 
-            if (phaseWords == null
-                    || phaseWords.size() != WORDS_PER_PHASE) {
-                throw new IllegalArgumentException(
-                    "Mỗi phase phải có đúng 3 từ"
-                );
+            if (phaseWords == null || phaseWords.size() != WORDS_PER_PHASE) {
+                throw new IllegalArgumentException("Mỗi phase phải có đúng 3 từ");
             }
 
             int minLength = (p == 0) ? 5 : (p == 1) ? 7 : 9;
@@ -135,7 +124,6 @@ public class BossMonster extends Monster {
             return;
         }
 
-        // Countdown của từ hiện tại.
         wordElapsed += dt;
 
         if (phase >= 1) {
@@ -150,8 +138,6 @@ public class BossMonster extends Monster {
         if (wordElapsed >= PHASE_COUNTDOWNS[phase]) {
             executeSkill();
 
-            // Giữ nguyên HP và số từ đã hoàn thành.
-            // Đặt lại từ đang gõ về ký tự đầu.
             currentWordIndex = 0;
             currentWord = chooseNextWord();
             wordElapsed = 0.0;
@@ -172,14 +158,8 @@ public class BossMonster extends Monster {
         return true;
     }
 
-    /**
-     * Gọi khi người chơi gõ hoàn thành toàn bộ từ của boss.
-     *
-     * @return true nếu boss đã bị tiêu diệt
-     */
     public boolean completeWord() {
-        if (!isAlive()
-                || currentWordIndex != currentWord.length()) {
+        if (!isAlive() || currentWordIndex != currentWord.length()) {
             return false;
         }
 
@@ -192,7 +172,6 @@ public class BossMonster extends Monster {
             return true;
         }
 
-        // Mỗi phase gồm 3 từ.
         if (phaseWordIndex >= WORDS_PER_PHASE) {
             phase++;
 
@@ -212,13 +191,8 @@ public class BossMonster extends Monster {
         return false;
     }
 
-    /**
-     * Chọn từ tiếp theo trong phase hiện tại.
-     * Không chọn lại ngay từ vừa hết hạn.
-     */
     private String chooseNextWord() {
         List<String> words = wordLists.get(phase);
-
         String nextWord = words.get(phaseWordIndex);
 
         if (nextWord.equals(currentWord) && words.size() > 1) {
@@ -229,34 +203,23 @@ public class BossMonster extends Monster {
         return nextWord;
     }
 
-    /**
-     * Boss yêu cầu GameManager gây 1 sát thương lên Player.
-     * Boss không trực tiếp quản lý Player.
-     */
     public void executeSkill() {
         skillPending = true;
     }
 
-    /**
-     * Cho GameManager biết có kỹ năng cần xử lý hay không.
-     * Đọc trạng thái này sẽ tiêu thụ yêu cầu.
-     */
     public boolean consumeSkillPending() {
         boolean result = skillPending;
         skillPending = false;
         return result;
     }
 
-    /**
-     * Báo cho GameManager biết cần thử triệu hồi minion.
-     * Việc tạo minion thuộc trách nhiệm của GameManager/Factory.
-     */
     public boolean summonMinions() {
         boolean result = summonPending;
         summonPending = false;
         return result;
     }
 
+    @Override
     public void onDeath() {
         if (isAlive()) {
             setAlive(false);
@@ -267,12 +230,26 @@ public class BossMonster extends Monster {
         return Math.max(0.0, PHASE_COUNTDOWNS[phase] - wordElapsed);
     }
 
+    public double getPhaseDuration() {
+        return PHASE_COUNTDOWNS[phase];
+    }
+
     public int getPhase() {
         return phase + 1;
     }
 
     public int getHp() {
         return hp;
+    }
+
+    @Override
+    public String getFullWord() {
+        return currentWord;
+    }
+
+    @Override
+    public int getTypedCharacters() {
+        return currentWordIndex;
     }
 
     @Override
@@ -304,17 +281,18 @@ public class BossMonster extends Monster {
             return;
         }
 
+        Color oldColor = g.getColor();
+        Font oldFont = g.getFont();
+
         int x = (int) getX();
         int y = (int) getY();
 
-        // Thân boss.
         g.setColor(new Color(120, 35, 160));
         g.fillRoundRect(x, y, BOSS_WIDTH, BOSS_HEIGHT, 24, 24);
 
         g.setColor(Color.MAGENTA);
         g.drawRoundRect(x, y, BOSS_WIDTH, BOSS_HEIGHT, 24, 24);
 
-        // HP.
         g.setColor(Color.RED);
         g.fillRect(x, y - 12, BOSS_WIDTH, 7);
 
@@ -325,26 +303,35 @@ public class BossMonster extends Monster {
         );
 
         g.setColor(Color.WHITE);
-        g.setFont(new Font("Monospaced", Font.BOLD, 14));
+        g.setFont(new Font(Font.MONOSPACED, Font.BOLD, 14));
         g.drawString("BOSS  " + hp + "/" + MAX_HP, x + 8, y + 22);
 
-        // Từ đang gõ.
-        g.setFont(new Font("Monospaced", Font.BOLD, 16));
-        g.drawString(currentWord, x + 8, y + 52);
+        g.setFont(new Font(Font.MONOSPACED, Font.BOLD, 16));
+        if (currentWordIndex > 0) {
+            String typed = currentWord.substring(0, currentWordIndex);
+            g.setColor(Color.GRAY);
+            g.drawString(typed, x + 8, y + 52);
+            int typedWidth = g.getFontMetrics().stringWidth(typed);
+            g.setColor(Color.WHITE);
+            g.drawString(currentWord.substring(currentWordIndex), x + 8 + typedWidth, y + 52);
+        } else {
+            g.setColor(Color.WHITE);
+            g.drawString(currentWord, x + 8, y + 52);
+        }
 
-        // Phase và countdown.
-        g.setFont(new Font("SansSerif", Font.PLAIN, 12));
+        g.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 12));
         g.drawString(
             "Phase " + (phase + 1)
                 + " | " + String.format("%.1f", getCountdown()) + "s",
             x + 8, y + 72
         );
+
+        g.setColor(oldColor);
+        g.setFont(oldFont);
     }
 
     @Override
     public Rectangle2D getBounds() {
-        return new Rectangle2D.Double(
-            getX(), getY(), BOSS_WIDTH, BOSS_HEIGHT
-        );
+        return new Rectangle2D.Double(getX(), getY(), BOSS_WIDTH, BOSS_HEIGHT);
     }
 }

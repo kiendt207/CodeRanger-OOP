@@ -11,11 +11,19 @@ import java.util.Objects;
 import java.util.Random;
 
 public class MonsterFactory {
+    private static final double MIN_SPAWN_X = 65.0;
+    private static final double MAX_SPAWN_X = GameConstants.WIDTH - 65.0;
+    private static final double MIN_SPAWN_SEPARATION = 80.0;
+    private static final double[] FALLBACK_POINTS = {75.0, 170.0, 270.0, 370.0, 465.0};
+
     private final WordProvider wordProvider;
     private final Random random;
     private final Long resetSeed;
     private final Difficulty difficulty = new Difficulty();
     private long sequence;
+    private boolean hasLastSpawnX;
+    private double lastSpawnX;
+    private int pendingStreak;
 
     public MonsterFactory() {
         this(new WordProvider(2026L), new Random(2026L), 2026L);
@@ -38,17 +46,44 @@ public class MonsterFactory {
     }
 
     public Monster createNormal(int level, double now, boolean minion) {
-        double x = 65.0 + random.nextDouble() * (GameConstants.WIDTH - 130.0);
-        double y = minion ? 250.0 : -30.0;
-        double speed = difficulty.normalSpeed(now);
-        return new NormalMonster(x, y, wordProvider.nextNormal(level), now,
-                sequence++, speed, minion);
+        double centerX = selectSpawnCenterX();
+        double centerY = minion ? 250.0 : -30.0;
+        double speed = minion
+                ? difficulty.normalSpeed(now)
+                : difficulty.effectiveNormalSpeed(now, pendingStreak);
+        return new NormalMonster(
+                centerX - NormalMonster.SIZE / 2.0,
+                centerY - NormalMonster.SIZE / 2.0,
+                wordProvider.nextNormal(level),
+                now,
+                sequence++,
+                speed,
+                minion
+        );
+    }
+
+    public Monster createNormal(int level, double now, boolean minion, int streak) {
+        int previous = this.pendingStreak;
+        this.pendingStreak = Math.max(0, streak);
+        try {
+            return createNormal(level, now, minion);
+        } finally {
+            this.pendingStreak = previous;
+        }
     }
 
     public Monster createBonus(int level, double now) {
-        double x = 65.0 + random.nextDouble() * (GameConstants.WIDTH - 130.0);
+        double centerX = selectSpawnCenterX();
+        double centerY = -30.0;
         double speed = difficulty.bonusSpeed(now);
-        return new BonusMonster(x, -30.0, wordProvider.nextBonus(), now, sequence++, speed);
+        return new BonusMonster(
+                centerX - BonusMonster.SIZE / 2.0,
+                centerY - BonusMonster.SIZE / 2.0,
+                wordProvider.nextBonus(),
+                now,
+                sequence++,
+                speed
+        );
     }
 
     public BossMonster createBoss(double now) {
@@ -59,8 +94,39 @@ public class MonsterFactory {
         return new BossMonster(wordsByPhase, now, sequence++);
     }
 
+    private double selectSpawnCenterX() {
+        if (!hasLastSpawnX) {
+            double cx = MIN_SPAWN_X + random.nextDouble() * (MAX_SPAWN_X - MIN_SPAWN_X);
+            lastSpawnX = cx;
+            hasLastSpawnX = true;
+            return cx;
+        }
+
+        for (int attempt = 0; attempt < 12; attempt++) {
+            double candidate = MIN_SPAWN_X + random.nextDouble() * (MAX_SPAWN_X - MIN_SPAWN_X);
+            if (Math.abs(candidate - lastSpawnX) >= MIN_SPAWN_SEPARATION) {
+                lastSpawnX = candidate;
+                return candidate;
+            }
+        }
+
+        double bestPoint = FALLBACK_POINTS[0];
+        double bestDist = Math.abs(bestPoint - lastSpawnX);
+        for (int i = 1; i < FALLBACK_POINTS.length; i++) {
+            double dist = Math.abs(FALLBACK_POINTS[i] - lastSpawnX);
+            if (dist > bestDist) {
+                bestDist = dist;
+                bestPoint = FALLBACK_POINTS[i];
+            }
+        }
+        lastSpawnX = bestPoint;
+        return bestPoint;
+    }
+
     public void reset() {
         sequence = 0;
+        hasLastSpawnX = false;
+        lastSpawnX = 0.0;
         wordProvider.reset();
         if (resetSeed != null) {
             random.setSeed(resetSeed);

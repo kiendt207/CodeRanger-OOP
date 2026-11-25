@@ -13,31 +13,46 @@ public class WaveManager {
     private double normalElapsed;
     private double bonusElapsed;
     private int currentWave;
+    private int lastTier;
     private boolean bossSpawned;
 
     public WaveManager(Difficulty difficulty, MonsterFactory monsterFactory) {
         this.difficulty = difficulty;
         this.monsterFactory = monsterFactory;
-        this.normalElapsed = 0.0;
-        this.bonusElapsed = 0.0;
-        this.currentWave = 1;
-        this.bossSpawned = false;
+        reset();
     }
 
     public List<Monster> update(double dt, double now, List<Monster> currentMonsters) {
+        return update(dt, now, currentMonsters, 0);
+    }
+
+    public List<Monster> update(double dt, double now, List<Monster> currentMonsters, int streak) {
         List<Monster> newSpawns = new ArrayList<>();
 
         if (now >= GameConstants.BOSS_START) {
-            this.currentWave = 7;
+            this.currentWave = GameConstants.BOSS_WAVE;
             return newSpawns;
         }
 
-        this.currentWave = (int) Math.floor(now / 40.0) + 1;
-        int currentLevel = difficulty.level(now);
+        double clampedNow = Math.max(0.0, now);
+        this.currentWave = Math.min(
+                GameConstants.NORMAL_WAVES,
+                (int) Math.floor(clampedNow / GameConstants.WAVE_DURATION) + 1
+        );
+        int currentTier = difficulty.level(clampedNow);
+        int wordLvl = difficulty.wordLevel(currentTier);
+
+        double nInterval = difficulty.effectiveNormalInterval(clampedNow, streak);
+        int maxNormals = difficulty.effectiveMaxNormals(clampedNow, streak);
+
+        if (currentTier != lastTier) {
+            lastTier = currentTier;
+            if (normalElapsed > nInterval) {
+                normalElapsed = nInterval;
+            }
+        }
 
         normalElapsed += dt;
-        double nInterval = difficulty.normalInterval(now);
-        int maxNormals = difficulty.maxNormals(now);
 
         long activeNormals = currentMonsters.stream()
                 .filter(m -> m.isAlive() && (m instanceof NormalMonster))
@@ -49,7 +64,7 @@ public class WaveManager {
             }
         } else if (normalElapsed >= nInterval) {
             normalElapsed -= nInterval;
-            Monster normal = monsterFactory.createNormal(currentLevel, now, false);
+            Monster normal = monsterFactory.createNormal(wordLvl, clampedNow, false, streak);
             if (normal != null) {
                 newSpawns.add(normal);
             }
@@ -60,10 +75,10 @@ public class WaveManager {
 
         if (!hasActiveBonus) {
             bonusElapsed += dt;
-            double bInterval = difficulty.bonusInterval(now);
+            double bInterval = difficulty.bonusInterval(clampedNow);
             if (bonusElapsed >= bInterval) {
-                bonusElapsed = 0.0; 
-                Monster bonus = monsterFactory.createBonus(currentLevel, now);
+                bonusElapsed = 0.0;
+                Monster bonus = monsterFactory.createBonus(wordLvl, clampedNow);
                 if (bonus != null) {
                     newSpawns.add(bonus);
                 }
@@ -75,16 +90,28 @@ public class WaveManager {
         return newSpawns;
     }
 
-    public int getCurrentWave() { return currentWave; }
+    public void primeInitialSpawn() {
+        double initialInterval = difficulty.normalInterval(0.0);
+        this.normalElapsed = Math.max(0.0, initialInterval - 0.5);
+    }
+
+    public int getCurrentWave() {
+        return currentWave;
+    }
+
     public boolean isBossDue(double now) {
         return now >= GameConstants.BOSS_START && !bossSpawned;
     }
-    public void markBossSpawned() { this.bossSpawned = true; }
+
+    public void markBossSpawned() {
+        this.bossSpawned = true;
+    }
 
     public void reset() {
         normalElapsed = 0.0;
         bonusElapsed = 0.0;
         currentWave = 1;
+        lastTier = 0;
         bossSpawned = false;
     }
 }
