@@ -1,5 +1,6 @@
 package coderanger;
 
+import coderanger.audio.SoundEngine;
 import coderanger.manager.GameManager;
 import coderanger.manager.HistoryStore;
 import coderanger.manager.MonsterFactory;
@@ -14,13 +15,14 @@ public class Main {
     public static void main(String[] args) {
         SwingUtilities.invokeLater(() -> {
             ResourceManager resources = new ResourceManager();
+            SoundEngine soundEngine = new SoundEngine();
             HistoryStore historyStore = new HistoryStore(
                     Paths.get(System.getProperty("user.home"), ".coderanger", "history.tsv"));
             WordProvider wordProvider = new WordProvider(2026L);
             MonsterFactory monsterFactory = new MonsterFactory(wordProvider, new Random(2026L));
             GameManager manager = new GameManager(historyStore, monsterFactory);
 
-            GameFrame frame = new GameFrame(manager, resources);
+            GameFrame frame = new GameFrame(manager, resources, soundEngine);
             frame.setVisible(true);
             frame.showMenu();
         });

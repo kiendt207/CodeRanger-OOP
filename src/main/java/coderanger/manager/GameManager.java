@@ -4,6 +4,7 @@ import coderanger.model.BossMonster;
 import coderanger.model.LaserEffect;
 import coderanger.model.Monster;
 import coderanger.model.Player;
+import coderanger.model.ShockwaveEffect;
 import coderanger.util.GameConstants;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -13,9 +14,12 @@ import java.util.Objects;
 public class GameManager {
     public enum GameState { MENU, PLAYING, PAUSED, VICTORY_ANIMATION, WIN, LOSS, RESULTS }
 
+    public static final double SHOCKWAVE_COOLDOWN = 5.0;
+
     private GameState state;
     private final HistoryStore historyStore;
     private final MonsterFactory monsterFactory;
+    private final Difficulty difficulty;
 
     private final Player player;
     private final TargetManager targetManager;
@@ -25,6 +29,7 @@ public class GameManager {
 
     private final List<Monster> monsters;
     private final List<LaserEffect> effects;
+    private final List<ShockwaveEffect> shockwaves;
 
     private double elapsedSeconds;
     private String playerName;
@@ -32,9 +37,20 @@ public class GameManager {
     private GameRecord finalRecord;
     private double victoryAnimationRemaining;
     private String saveErrorMessage;
+    private double shockwaveCooldown;
 
-    private static final double SHOCKWAVE_COOLDOWN = 5.0;
-    private double shockwaveCooldown;   // giây còn lại, 0 = sẵn sàng
+    // Read-only event counters for audio/visual feedback (UI observes deltas without mutating domain)
+    private long strikeEvents;
+    private long missEvents;
+    private long killEvents;
+    private long shockwaveEvents;
+    private long bonusBuffEvents;
+    private long shieldBreakEvents;
+    private long hpLostEvents;
+    private long bossWordBreakEvents;
+    private long bossSkillEvents;
+    private long bossAppearEvents;
+    private int lastBossHpAtEnd;
 
     public GameManager(HistoryStore historyStore, MonsterFactory monsterFactory) {
         this(historyStore, monsterFactory, new TargetManager());
@@ -43,15 +59,17 @@ public class GameManager {
     GameManager(HistoryStore historyStore, MonsterFactory monsterFactory, TargetManager tm) {
         this.historyStore = Objects.requireNonNull(historyStore, "historyStore");
         this.monsterFactory = Objects.requireNonNull(monsterFactory, "monsterFactory");
+        this.difficulty = new Difficulty();
 
         this.player = new Player();
         this.targetManager = Objects.requireNonNull(tm, "targetManager");
-        this.waveManager = new WaveManager(new Difficulty(), monsterFactory);
+        this.waveManager = new WaveManager(difficulty, monsterFactory);
         this.buffManager = new BuffManager();
         this.stats = new GameStats();
 
         this.monsters = new ArrayList<>();
         this.effects = new ArrayList<>();
+        this.shockwaves = new ArrayList<>();
         this.state = GameState.MENU;
         this.elapsedSeconds = 0.0;
         this.playerName = "Player";
@@ -64,8 +82,10 @@ public class GameManager {
         stats.reset();
         monsters.clear();
         effects.clear();
+        shockwaves.clear();
         targetManager.unlockTarget();
         waveManager.reset();
+        waveManager.primeInitialSpawn();
         monsterFactory.reset();
         this.state = GameState.PLAYING;
         this.elapsedSeconds = 0.0;
@@ -74,6 +94,18 @@ public class GameManager {
         this.saveErrorMessage = null;
         this.shockwaveCooldown = 0.0;
         this.victoryAnimationRemaining = 0.0;
+        this.lastBossHpAtEnd = 0;
+
+        this.strikeEvents = 0;
+        this.missEvents = 0;
+        this.killEvents = 0;
+        this.shockwaveEvents = 0;
+        this.bonusBuffEvents = 0;
+        this.shieldBreakEvents = 0;
+        this.hpLostEvents = 0;
+        this.bossWordBreakEvents = 0;
+        this.bossSkillEvents = 0;
+        this.bossAppearEvents = 0;
     }
 
     public void update(double dt) {
@@ -99,7 +131,7 @@ public class GameManager {
             shockwaveCooldown = Math.max(0.0, shockwaveCooldown - dt);
         }
 
-        List<Monster> spawned = waveManager.update(dt, elapsedSeconds, monsters);
+        List<Monster> spawned = waveManager.update(dt, elapsedSeconds, monsters, stats.getStreak());
         monsters.addAll(spawned);
         if (waveManager.isBossDue(elapsedSeconds)) {
             monsters.removeIf(monster -> !monster.isBoss());
@@ -110,6 +142,7 @@ public class GameManager {
             }
             monsters.add(boss);
             waveManager.markBossSpawned();
+            bossAppearEvents++;
         }
 
         for (Monster m : monsters) {
@@ -125,9 +158,10 @@ public class GameManager {
                 .findFirst()
                 .orElse(null);
         if (boss != null) {
+            lastBossHpAtEnd = boss.getHp();
             if (boss.consumeSkillPending()) {
-                player.takeDamage(1);
-                stats.resetStreak();
+                bossSkillEvents++;
+                applyPlayerDamage(1);
                 if (player.getHp() == 0) {
                     enterLossState();
                     return;
@@ -138,9 +172,8 @@ public class GameManager {
                     .filter(Monster::isAlive)
                     .filter(Monster::isMinion)
                     .count();
-            if (boss.summonMinions() && activeMinions < 3) {
-                Monster minion = monsterFactory.createNormal(
-                        new Difficulty().level(elapsedSeconds), elapsedSeconds, true);
+            if (boss.summonMinions() && activeMinions < BossMonster.MAX_MINIONS) {
+                Monster minion = monsterFactory.createNormal(1, elapsedSeconds, true);
                 if (minion == null || !minion.isMinion()) {
                     throw new IllegalStateException("MonsterFactory must create a minion");
                 }
@@ -158,12 +191,11 @@ public class GameManager {
             if (targetManager.getLockedTarget() == m) {
                 targetManager.unlockTarget();
             }
-            player.takeDamage(1);
-            stats.resetStreak();
+            applyPlayerDamage(1);
 
             if (player.getHp() == 0) {
                 enterLossState();
-                return; 
+                return;
             }
         }
 
@@ -172,7 +204,25 @@ public class GameManager {
         }
         effects.removeIf(e -> !e.isAlive());
 
+        for (ShockwaveEffect sw : shockwaves) {
+            sw.update(dt);
+        }
+        shockwaves.removeIf(sw -> !sw.isAlive());
+
         monsters.removeIf(m -> !m.isAlive());
+    }
+
+    private void applyPlayerDamage(int amount) {
+        int shieldsBefore = player.getShieldLayers();
+        int hpLost = player.takeDamage(amount);
+        int shieldsLost = shieldsBefore - player.getShieldLayers();
+        if (shieldsLost > 0) {
+            shieldBreakEvents += shieldsLost;
+        }
+        if (hpLost > 0) {
+            hpLostEvents += hpLost;
+        }
+        stats.resetStreak();
     }
 
     public void handleCharacter(char c) {
@@ -181,6 +231,7 @@ public class GameManager {
         Monster target = targetManager.findAndLockTarget(c, monsters);
         if (target == null) {
             stats.recordKey(false);
+            missEvents++;
             return;
         }
 
@@ -188,12 +239,20 @@ public class GameManager {
         stats.recordKey(matched);
 
         if (matched) {
-            effects.add(new LaserEffect(GameConstants.PLAYER_X, GameConstants.PLAYER_Y, target.getX(), target.getY()));
+            strikeEvents++;
+            effects.add(new LaserEffect(
+                    GameConstants.PLAYER_X,
+                    GameConstants.PLAYER_Y - 12,
+                    target.getCenterX(),
+                    target.getCenterY()
+            ));
 
             if (target.isCompleted()) {
                 if (target instanceof BossMonster boss) {
                     stats.recordBossWord();
+                    bossWordBreakEvents++;
                     boolean defeated = boss.completeWord();
+                    lastBossHpAtEnd = boss.getHp();
                     if (defeated) {
                         stats.recordBossDeath();
                         beginVictoryAnimation();
@@ -203,8 +262,10 @@ public class GameManager {
 
                 boolean isQuick = target.isQuickKill(elapsedSeconds);
                 stats.recordKill(target, isQuick, false);
+                killEvents++;
                 if (target.isBonus()) {
                     buffManager.applyBonus(player);
+                    bonusBuffEvents++;
                 }
 
                 target.onDeath();
@@ -212,6 +273,8 @@ public class GameManager {
 
                 if (isQuick) tryShockwave(target);
             }
+        } else {
+            missEvents++;
         }
     }
 
@@ -225,8 +288,14 @@ public class GameManager {
         Monster victim = targetManager.selectMostDangerous(monsters, source);
         if (victim == null) return;
 
-        effects.add(new LaserEffect(
-                source.getX(), source.getY(), victim.getX(), victim.getY()));
+        shockwaves.add(new ShockwaveEffect(
+                source.getCenterX(),
+                source.getCenterY(),
+                victim.getCenterX(),
+                victim.getCenterY()
+        ));
+        shockwaveEvents++;
+        killEvents++;
         stats.recordKill(victim, false, true);
         victim.onDeath();
         if (targetManager.getLockedTarget() == victim) {
@@ -260,6 +329,7 @@ public class GameManager {
         state = GameState.LOSS;
         targetManager.unlockTarget();
         effects.clear();
+        shockwaves.clear();
         monsters.removeIf(monster -> !monster.isAlive());
         saveAndSnapshot("LOSS");
     }
@@ -269,21 +339,37 @@ public class GameManager {
         victoryAnimationRemaining = 2.5;
         targetManager.unlockTarget();
         effects.clear();
+        shockwaves.clear();
         monsters.removeIf(Monster::isMinion);
     }
 
-    // Các getter cho UI vẽ snapshot
+    // Snapshot & read-only getters for UI
     public GameState getState() { return state; }
     public Player getPlayer() { return player; }
     public List<Monster> getMonsters() { return List.copyOf(monsters); }
     public List<LaserEffect> getEffects() { return List.copyOf(effects); }
+    public List<ShockwaveEffect> getShockwaves() { return List.copyOf(shockwaves); }
     public GameStats getStats() { return stats; }
     public TargetManager getTargetManager() { return targetManager; }
+    public Difficulty getDifficulty() { return difficulty; }
     public GameRecord getResult() { return finalRecord; }
     public double getElapsedSeconds() { return elapsedSeconds; }
     public double getVictoryAnimationRemaining() { return victoryAnimationRemaining; }
     public int getCurrentWave() { return waveManager.getCurrentWave(); }
+    public double getShockwaveCooldown() { return shockwaveCooldown; }
     public HistoryStore getHistoryStore() { return historyStore; }
     public String getPlayerName() { return playerName; }
     public String getSaveErrorMessage() { return saveErrorMessage; }
+    public int getLastBossHpAtEnd() { return lastBossHpAtEnd; }
+
+    public long getStrikeEvents() { return strikeEvents; }
+    public long getMissEvents() { return missEvents; }
+    public long getKillEvents() { return killEvents; }
+    public long getShockwaveEvents() { return shockwaveEvents; }
+    public long getBonusBuffEvents() { return bonusBuffEvents; }
+    public long getShieldBreakEvents() { return shieldBreakEvents; }
+    public long getHpLostEvents() { return hpLostEvents; }
+    public long getBossWordBreakEvents() { return bossWordBreakEvents; }
+    public long getBossSkillEvents() { return bossSkillEvents; }
+    public long getBossAppearEvents() { return bossAppearEvents; }
 }

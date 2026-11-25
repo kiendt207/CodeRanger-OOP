@@ -1,14 +1,15 @@
 package coderanger.model;
 
+import coderanger.util.GameConstants;
 import java.awt.Color;
 import java.awt.Font;
 import java.awt.Graphics2D;
 import java.awt.geom.RoundRectangle2D;
 
 public class BonusMonster extends Monster {
-    private static final int SIZE = 42;
-    private static final double PLAYER_X = 270.0;
-    private static final double PLAYER_Y = 820.0;
+    public static final int SIZE = 42;
+    private static final double PLAYER_X = GameConstants.PLAYER_X;
+    private static final double PLAYER_Y = GameConstants.PLAYER_Y;
 
     private final double speed;
 

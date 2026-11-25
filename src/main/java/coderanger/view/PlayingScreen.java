@@ -1,33 +1,46 @@
 package coderanger.view;
 
+import coderanger.audio.SoundEffect;
+import coderanger.audio.SoundEngine;
 import coderanger.input.InputHandler;
 import coderanger.manager.GameManager;
 import coderanger.manager.GameRecord;
 import coderanger.resource.ResourceManager;
-import javax.swing.JPanel;
-import javax.swing.Timer;
 import java.awt.BorderLayout;
 import java.util.function.Consumer;
+import javax.swing.JPanel;
+import javax.swing.Timer;
 
+@SuppressWarnings("serial")
 public class PlayingScreen extends JPanel {
     private final GamePanel panel;
     private final GameManager manager;
+    private final SoundEngine soundEngine;
     private final Timer gameTimer;
     private final Consumer<GameRecord> onGameFinished;
     private long lastTime;
 
     public PlayingScreen(GameManager manager, ResourceManager resources) {
-        this(manager, resources, record -> { });
+        this(manager, resources, new SoundEngine(true), record -> { });
     }
 
     public PlayingScreen(
             GameManager manager,
             ResourceManager resources,
             Consumer<GameRecord> onGameFinished) {
+        this(manager, resources, new SoundEngine(true), onGameFinished);
+    }
+
+    public PlayingScreen(
+            GameManager manager,
+            ResourceManager resources,
+            SoundEngine soundEngine,
+            Consumer<GameRecord> onGameFinished) {
         this.manager = manager;
+        this.soundEngine = soundEngine;
         this.onGameFinished = onGameFinished;
         setLayout(new BorderLayout());
-        panel = new GamePanel(manager, resources);
+        panel = new GamePanel(manager, resources, soundEngine);
         add(panel, BorderLayout.CENTER);
         addKeyListener(new InputHandler(manager));
         setFocusable(true);
@@ -37,6 +50,7 @@ public class PlayingScreen extends JPanel {
             double dt = Math.min((now - lastTime) / 1_000_000_000.0, 0.05);
             lastTime = now;
             manager.update(dt);
+            panel.tickVisuals(dt);
 
             GameManager.GameState state = manager.getState();
             if (state == GameManager.GameState.VICTORY_ANIMATION
@@ -48,6 +62,12 @@ public class PlayingScreen extends JPanel {
             if ((state == GameManager.GameState.WIN || state == GameManager.GameState.LOSS)
                     && manager.getResult() != null) {
                 stopLoop();
+                if (this.soundEngine != null) {
+                    this.soundEngine.play(
+                            state == GameManager.GameState.WIN
+                                    ? SoundEffect.VICTORY
+                                    : SoundEffect.GAME_OVER);
+                }
                 onGameFinished.accept(manager.getResult());
             }
         });
@@ -55,6 +75,7 @@ public class PlayingScreen extends JPanel {
 
     public void startLoop() {
         panel.setVictoryAnimTime(0.0);
+        panel.resetVisualTracking();
         lastTime = System.nanoTime();
         gameTimer.start();
         requestGameFocus();

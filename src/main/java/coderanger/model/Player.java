@@ -5,6 +5,7 @@ import java.awt.BasicStroke;
 import java.awt.Color;
 import java.awt.Graphics2D;
 import java.awt.Polygon;
+import java.awt.Stroke;
 
 public class Player extends GameObject {
     private static final int WIDTH = 64;
@@ -39,7 +40,7 @@ public class Player extends GameObject {
         }
 
         Color oldColor = g.getColor();
-        BasicStroke oldStroke = (BasicStroke) g.getStroke();
+        Stroke oldStroke = g.getStroke();
 
         double cx = getX() + getWidth() / 2.0;
         double cy = getY() + getHeight() / 2.0;

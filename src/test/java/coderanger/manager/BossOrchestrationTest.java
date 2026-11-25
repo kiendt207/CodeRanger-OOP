@@ -4,27 +4,27 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertSame;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import coderanger.model.BonusMonster;
 import coderanger.model.BossMonster;
 import coderanger.model.Monster;
 import coderanger.model.NormalMonster;
+import coderanger.util.GameConstants;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 
 class BossOrchestrationTest {
     @Test
-    void bossWavePurgesOtherMonstersWithoutAwardingKills() {
+    void bossWavePurgesOtherMonstersWithoutAwardingKillsAtSemesterEight() {
         GameManager manager = new GameManager(new HistoryStore(), bossFactory());
         manager.start("Tester");
-        manager.update(239.9);
-        manager.addMonster(new NormalMonster(100, 100, "normal", 239.9, 1, 0, false));
-        manager.addMonster(new BonusMonster(100, 100, "star", 239.9, 2, 0));
+        manager.update(GameConstants.BOSS_START - 0.1);
+        manager.addMonster(new NormalMonster(100, 100, "normal", 244.9, 1, 0, false));
+        manager.addMonster(new BonusMonster(100, 100, "star", 244.9, 2, 0));
 
         manager.update(0.1);
 
-        assertEquals(7, manager.getCurrentWave());
+        assertEquals(GameConstants.BOSS_WAVE, manager.getCurrentWave());
         assertEquals(1, manager.getMonsters().size());
         assertInstanceOf(BossMonster.class, manager.getMonsters().get(0));
         assertEquals(0, manager.getStats().getMonstersKilled());
@@ -41,19 +41,19 @@ class BossOrchestrationTest {
         completeCurrentWord(manager, boss);
         completeCurrentWord(manager, boss);
         assertEquals(2, boss.getPhase());
-        assertEquals(16.0, boss.getCountdown());
+        assertEquals(13.0, boss.getCountdown());
 
-        manager.update(10.0);
-        manager.update(10.0);
-        manager.update(10.0);
-        manager.update(10.0);
-        assertEquals(3, manager.getMonsters().stream().filter(Monster::isMinion).count());
+        for (int i = 0; i < 6; i++) {
+            manager.update(7.0);
+        }
+        assertEquals(BossMonster.MAX_MINIONS,
+                manager.getMonsters().stream().filter(Monster::isMinion).count());
 
         completeCurrentWord(manager, boss);
         completeCurrentWord(manager, boss);
         completeCurrentWord(manager, boss);
         assertEquals(3, boss.getPhase());
-        assertEquals(18.0, boss.getCountdown());
+        assertEquals(15.0, boss.getCountdown());
     }
 
     @Test
@@ -63,21 +63,21 @@ class BossOrchestrationTest {
         BossMonster boss = createBoss();
         manager.addMonster(boss);
 
-        manager.update(13.999);
+        manager.update(10.999);
         String completedWord = boss.getCurrentWord();
         for (char c : completedWord.toCharArray()) {
             manager.handleCharacter(c);
         }
         manager.update(0.001);
         assertEquals(8, boss.getHp());
-        assertEquals(13.999, boss.getCountdown(), 0.0001);
+        assertEquals(10.999, boss.getCountdown(), 0.0001);
         assertEquals(5, manager.getPlayer().getHp());
 
         double countdownBeforeTimeout = boss.getCountdown();
         manager.update(countdownBeforeTimeout);
         assertEquals(0, manager.getPlayer().getShieldLayers());
         assertFalse(boss.consumeSkillPending());
-        assertEquals(14.0, boss.getCountdown());
+        assertEquals(11.0, boss.getCountdown());
     }
 
     @Test
@@ -114,6 +114,7 @@ class BossOrchestrationTest {
             @Override
             public Monster createNormal(int level, double now, boolean minion) {
                 if (!minion) return null;
+                assertEquals(1, level, "Boss minions should use word level 1 (4-6 chars)");
                 return new NormalMonster(252, 110, "minion", now, sequence++, 0, true);
             }
 

@@ -7,10 +7,13 @@ import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Random;
+import java.util.Set;
 
 public class WordProvider {
     private final Map<String, List<String>> words = new HashMap<>();
@@ -28,7 +31,7 @@ public class WordProvider {
     }
 
     public WordProvider(Random random) {
-        this.random = java.util.Objects.requireNonNull(random, "random");
+        this.random = Objects.requireNonNull(random, "random");
         resetSeed = null;
         loadAllWords();
     }
@@ -48,24 +51,38 @@ public class WordProvider {
             throw new IllegalStateException("Missing word resource: " + path);
         }
 
-        List<String> wordList = new ArrayList<>();
+        Set<String> uniqueWords = new LinkedHashSet<>();
         try (BufferedReader reader = new BufferedReader(
                 new InputStreamReader(resource, StandardCharsets.UTF_8))) {
             String line;
             while ((line = reader.readLine()) != null) {
                 String word = line.trim().toLowerCase(Locale.ROOT);
-                if (!word.isEmpty()) {
-                    wordList.add(word);
+                if (word.isEmpty()) {
+                    continue;
                 }
+                if (!isAsciiLowercaseWord(word)) {
+                    throw new IllegalStateException("Invalid non-ASCII word '" + word + "' in " + path);
+                }
+                uniqueWords.add(word);
             }
         } catch (IOException e) {
             throw new IllegalStateException("Unable to read word resource: " + path, e);
         }
 
-        if (wordList.isEmpty()) {
+        if (uniqueWords.isEmpty()) {
             throw new IllegalStateException("Word resource is empty: " + path);
         }
-        return List.copyOf(wordList);
+        return List.copyOf(uniqueWords);
+    }
+
+    private static boolean isAsciiLowercaseWord(String word) {
+        for (int i = 0; i < word.length(); i++) {
+            char c = word.charAt(i);
+            if (c < 'a' || c > 'z') {
+                return false;
+            }
+        }
+        return true;
     }
 
     private String getNextWord(String key) {
@@ -91,14 +108,22 @@ public class WordProvider {
         List<String> candidates = words.get("boss" + phase).stream()
                 .filter(word -> word.length() >= minLength && word.length() <= maxLength)
                 .toList();
-        if (candidates.isEmpty()) {
-            throw new IllegalStateException("No words of the required length for boss phase " + phase);
+        if (candidates.size() < 3) {
+            throw new IllegalStateException("Need at least 3 distinct words of required length for boss phase " + phase);
         }
+
+        List<String> pool = new ArrayList<>(candidates);
         List<String> result = new ArrayList<>(3);
         for (int i = 0; i < 3; i++) {
-            result.add(candidates.get(random.nextInt(candidates.size())));
+            int idx = random.nextInt(pool.size());
+            result.add(pool.remove(idx));
         }
         return List.copyOf(result);
+    }
+
+    public List<String> getWordPool(String key) {
+        List<String> list = words.get(key);
+        return list == null ? List.of() : list;
     }
 
     public void reset() {
